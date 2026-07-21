@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: fct_nz_traffic_crashes
+    description: >
+      Fact table containing enriched, cleaned traffic crash records with calculated metrics and flags.
+    columns:
+      - name: crash_id
+        description: "Primary key of the fact table."
+        tests:
+          - unique
+          - not_null
+      - name: total_injured_count
+        description: "Sum of serious and minor injury counts."
+        tests:
+          - not_null
+      - name: total_casualties
+        description: "Sum of serious, minor injury and fatal counts."
+        tests:
+          - not_null
+      - name: has_fatalities
+        description: "Boolean indicating if one or more fatalities occurred."
+        tests:
+          - not_null
+      - name: speed_zone
+        description: "Category of speed limit (e.g. Urban, Suburban/Rural, Highway/Open Road)."
+        tests:
+          - not_null

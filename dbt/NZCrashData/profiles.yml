@@ -1,0 +1,12 @@
+nz_traffic_crash_data:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      port: 5432
+      database: "{{ env_var('POSTGRES_DATABASE_NAME', 'NZTrafficCrashData') }}"
+      schema: dbt
+      threads: 16
+      host: "{{ env_var('DBT_HOST', 'localhost') }}"
+      user: postgres
+      password: "{{ env_var('POSTGRES_PASSWORD', 'postgres') }}"

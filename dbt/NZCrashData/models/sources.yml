@@ -1,0 +1,159 @@
+version: 2
+
+sources:
+  - name: traffic
+    schema: raw
+    tables:
+      - name: NZ_Traffic_Crash
+        description: >
+          Raw traffic crash data from the Waka Kotahi NZ Transport Agency.
+          Each row represents a single crash event with detailed information about the crash.
+        columns:
+          - name: X
+            description: "X coordinate of the crash"
+          - name: Y
+            description: "Y coordinate of the crash"
+          - name: OBJECTID
+            description: "Object ID"
+          - name: advisorySpeed
+            description: "Advisory speed"
+          - name: areaUnitID
+            description: "Area Unit ID"
+          - name: bicycle
+            description: "Bicycle count / presence flag"
+          - name: bridge
+            description: "Bridge involved flag"
+          - name: bus
+            description: "Bus count / presence flag"
+          - name: carStationWagon
+            description: "Car/Station Wagon count / presence flag"
+          - name: cliffBank
+            description: "Cliff bank involved flag"
+          - name: crashDirectionDescription
+            description: "Description of the direction of the crash"
+          - name: crashFinancialYear
+            description: "Financial year of the crash"
+          - name: crashLocation1
+            description: "First location of the crash"
+          - name: crashLocation2
+            description: "Second location of the crash"
+          - name: crashRoadSideRoad
+            description: "Road side road flag"
+          - name: crashSeverity
+            description: "Severity of the crash"
+          - name: crashSHDescription
+            description: "State Highway description"
+          - name: crashYear
+            description: "Year of the crash"
+          - name: debris
+            description: "Debris involved flag"
+          - name: directionRoleDescription
+            description: "Direction role description"
+          - name: ditch
+            description: "Ditch involved flag"
+          - name: fatalCount
+            description: "Number of fatalities"
+          - name: fence
+            description: "Fence involved flag"
+          - name: flatHill
+            description: "Flat/Hill terrain description"
+          - name: guardRail
+            description: "Guard rail involved flag"
+          - name: holiday
+            description: "Holiday name if crash occurred during a holiday"
+          - name: houseOrBuilding
+            description: "House or building involved flag"
+          - name: intersection
+            description: "Intersection flag"
+          - name: kerb
+            description: "Kerb involved flag"
+          - name: light
+            description: "Light conditions during the crash"
+          - name: meshblockId
+            description: "Meshblock ID"
+          - name: minorInjuryCount
+            description: "Number of minor injuries"
+          - name: moped
+            description: "Moped count / presence flag"
+          - name: motorcycle
+            description: "Motorcycle count / presence flag"
+          - name: NumberOfLanes
+            description: "Number of lanes"
+          - name: objectThrownOrDropped
+            description: "Object thrown or dropped flag"
+          - name: otherObject
+            description: "Other object involved flag"
+          - name: otherVehicleType
+            description: "Other vehicle type count / presence flag"
+          - name: overBank
+            description: "Over bank involved flag"
+          - name: parkedVehicle
+            description: "Parked vehicle involved flag"
+          - name: pedestrian
+            description: "Pedestrian count / presence flag"
+          - name: phoneBoxEtc
+            description: "Phone box etc. involved flag"
+          - name: postOrPole
+            description: "Post or pole involved flag"
+          - name: region
+            description: "Region where crash occurred"
+          - name: roadCharacter
+            description: "Road character description"
+          - name: roadLane
+            description: "Road lane description"
+          - name: roadSurface
+            description: "Road surface condition"
+          - name: roadworks
+            description: "Roadworks flag"
+          - name: schoolBus
+            description: "School bus count / presence flag"
+          - name: seriousInjuryCount
+            description: "Number of serious injuries"
+          - name: slipOrFlood
+            description: "Slip or flood involved flag"
+          - name: speedLimit
+            description: "Speed limit"
+          - name: strayAnimal
+            description: "Stray animal involved flag"
+          - name: streetLight
+            description: "Street light condition description"
+          - name: suv
+            description: "SUV count / presence flag"
+          - name: taxi
+            description: "Taxi count / presence flag"
+          - name: temporarySpeedLimit
+            description: "Temporary speed limit"
+          - name: tlaId
+            description: "Territorial Authority ID"
+          - name: tlaName
+            description: "Territorial Authority Name"
+          - name: trafficControl
+            description: "Traffic control type"
+          - name: trafficIsland
+            description: "Traffic island involved flag"
+          - name: trafficSign
+            description: "Traffic sign involved flag"
+          - name: train
+            description: "Train involved flag"
+          - name: tree
+            description: "Tree involved flag"
+          - name: truck
+            description: "Truck count / presence flag"
+          - name: unknownVehicleType
+            description: "Unknown vehicle type count / presence flag"
+          - name: urban
+            description: "Urban/Rural area classification"
+          - name: vanOrUtility
+            description: "Van or utility count / presence flag"
+          - name: vehicle
+            description: "Vehicle count / presence flag"
+          - name: waterRiver
+            description: "Water/River involved flag"
+          - name: weatherA
+            description: "Weather A conditions"
+          - name: weatherB
+            description: "Weather B conditions"
+          - name: ingested_at
+            description: "Timestamp when this row was loaded into the database"
+            tests:
+              - not_null
