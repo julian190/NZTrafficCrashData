@@ -1,108 +1,67 @@
-with source as (
-    select * from {{ source('traffic', 'NZ_Traffic_Crash') }}
+WITH source AS (
+
+    SELECT * FROM {{ source('traffic', 'NZ_Traffic_Crash') }}
+
 ),
 
-cleaned as (
-    select
-        -- Identifiers
-        cast("OBJECTID" as bigint) as crash_id,
-        cast("tlaId" as integer) as tla_id,
-        cast("meshblockId" as bigint) as meshblock_id,
-        cast("areaUnitID" as bigint) as area_unit_id,
+cleaned AS (
 
-        -- Location Coordinates
-        cast("X" as double precision) as longitude,
-        cast("Y" as double precision) as latitude,
+    SELECT 
+        -- Identifiers 
+        CASE WHEN "OBJECTID"::text ~ '^[0-9]+$' THEN "OBJECTID"::int ELSE NULL END AS crash_id,
 
-        -- Location Names
-        "crashLocation1" as crash_location_1,
-        "crashLocation2" as crash_location_2,
-        "tlaName" as tla_name,
-        "region" as region,
+        -- Area 
+        CASE WHEN "X"::text ~ '^-?[0-9]+(\.[0-9]+)?$' THEN "X"::decimal ELSE NULL END AS longitude,
+        CASE WHEN "Y"::text ~ '^-?[0-9]+(\.[0-9]+)?$' THEN "Y"::decimal ELSE NULL END AS latitude,
+        "crashLocation1"                                                            AS crash_location1,
+        "crashLocation2"                                                            AS crash_location2,
+        
+        -- Conditions 
+        CASE WHEN "advisorySpeed"::text ~ '^[0-9]+$' THEN "advisorySpeed"::int ELSE 0 END AS advisory_speed,
+        "region"                                                                         AS region,
 
-        -- Road & Traffic Conditions
-        "roadCharacter" as road_character,
-        "roadLane" as road_lane,
-        "roadSurface" as road_surface,
-        "roadworks" as has_roadworks,
-        "flatHill" as flat_hill,
-        "streetLight" as street_light,
-        "light" as light_condition,
-        "trafficControl" as traffic_control,
-        "urban" as urban_rural,
+        -- Crash details 
+        "crashFinancialYear"                                                             AS financial_year,
+        "crashSeverity"                                                                  AS crash_severity,
+        "crashSHDescription"                                                             AS crash_sh_description,
+        CASE WHEN "crashYear"::text ~ '^[0-9]+$' THEN "crashYear"::int ELSE NULL END     AS crash_year,
+        
+        CASE WHEN "minorInjuryCount"::text ~ '^[0-9]+$' THEN "minorInjuryCount"::int ELSE 0 END     AS minor_injury_count,
+        CASE WHEN "fatalCount"::text ~ '^[0-9]+$' THEN "fatalCount"::int ELSE 0 END                 AS fatal_count,
+        CASE WHEN "seriousInjuryCount"::text ~ '^[0-9]+$' THEN "seriousInjuryCount"::int ELSE 0 END AS serious_injury_count,
 
-        -- Weather Conditions
-        "weatherA" as weather_a,
-        "weatherB" as weather_b,
+        -- Vehicle 
+        CASE WHEN "bicycle"::text ~ '^[0-9]+$' THEN "bicycle"::int ELSE 0 END                 AS bicycle_count,
+        CASE WHEN "bus"::text ~ '^[0-9]+$' THEN "bus"::int ELSE 0 END                         AS bus_count,
+        CASE WHEN "carStationWagon"::text ~ '^[0-9]+$' THEN "carStationWagon"::int ELSE 0 END AS car_station_wagon_count,
+        CASE WHEN "moped"::text ~ '^[0-9]+$' THEN "moped"::int ELSE 0 END                     AS mopped_count,
+        CASE WHEN "motorcycle"::text ~ '^[0-9]+$' THEN "motorcycle"::int ELSE 0 END           AS motorcycle_count,
 
-        -- Speed Limits
-        cast("speedLimit" as integer) as speed_limit,
-        cast("advisorySpeed" as integer) as advisory_speed,
-        cast("temporarySpeedLimit" as integer) as temporary_speed_limit,
-
-        -- Crash Info & Severity
-        "crashSeverity" as crash_severity,
-        cast("crashYear" as integer) as crash_year,
-        "crashFinancialYear" as crash_financial_year,
-        "holiday" as holiday,
-        "crashDirectionDescription" as crash_direction_description,
-        "directionRoleDescription" as direction_role_description,
-        "crashSHDescription" as crash_sh_description,
-        cast("crashRoadSideRoad" as double precision) as crash_road_side_road,
-
-        -- Casualty Counts
-        cast("fatalCount" as integer) as fatal_count,
-        cast("seriousInjuryCount" as integer) as serious_injury_count,
-        cast("minorInjuryCount" as integer) as minor_injury_count,
-
-        -- Vehicle Involvement (Counts/Presence)
-        cast("bicycle" as integer) as bicycle_count,
-        cast("bus" as integer) as bus_count,
-        cast("carStationWagon" as integer) as car_station_wagon_count,
-        cast("moped" as integer) as moped_count,
-        cast("motorcycle" as integer) as motorcycle_count,
-        cast("schoolBus" as integer) as school_bus_count,
-        cast("suv" as integer) as suv_count,
-        cast("taxi" as integer) as taxi_count,
-        cast("truck" as integer) as truck_count,
-        cast("vanOrUtility" as integer) as van_or_utility_count,
-        cast("otherVehicleType" as integer) as other_vehicle_type_count,
-        cast("unknownVehicleType" as integer) as unknown_vehicle_type_count,
-        cast("vehicle" as double precision) as vehicle_count,
-
-        -- Hazard / Object Collision flags (0 or 1 usually)
-        cast("bridge" as double precision) as bridge_hazard,
-        cast("cliffBank" as double precision) as cliff_bank_hazard,
-        cast("debris" as double precision) as debris_hazard,
-        cast("ditch" as double precision) as ditch_hazard,
-        cast("fence" as double precision) as fence_hazard,
-        cast("guardRail" as double precision) as guard_rail_hazard,
-        cast("houseOrBuilding" as double precision) as house_or_building_hazard,
-        cast("intersection" as double precision) as intersection_hazard,
-        cast("kerb" as double precision) as kerb_hazard,
-        cast("objectThrownOrDropped" as double precision) as object_thrown_or_dropped_hazard,
-        cast("otherObject" as double precision) as other_object_hazard,
-        cast("overBank" as double precision) as over_bank_hazard,
-        cast("parkedVehicle" as double precision) as parked_vehicle_hazard,
-        cast("pedestrian" as double precision) as pedestrian_hazard,
-        cast("phoneBoxEtc" as double precision) as phone_box_etc_hazard,
-        cast("postOrPole" as double precision) as post_or_pole_hazard,
-        cast("slipOrFlood" as double precision) as slip_or_flood_hazard,
-        cast("strayAnimal" as double precision) as stray_animal_hazard,
-        cast("trafficIsland" as double precision) as traffic_island_hazard,
-        cast("trafficSign" as double precision) as traffic_sign_hazard,
-        cast("train" as double precision) as train_hazard,
-        cast("tree" as double precision) as tree_hazard,
-        cast("waterRiver" as double precision) as water_river_hazard,
-
-        -- Infrastructure
-        cast("NumberOfLanes" as integer) as number_of_lanes,
-
-        -- Metadata
-        ingested_at
-
-    from source
-    where "OBJECTID" is not null
+        -- Environment 
+        CASE WHEN "bridge"::text ~ '^[0-9]+$' THEN "bridge"::int ELSE 0 END                           AS bridge_count,
+        CASE WHEN "ditch"::text ~ '^[0-9]+$' THEN "ditch"::int ELSE 0 END                             AS ditch_count,
+        CASE WHEN "fence"::text ~ '^[0-9]+$' THEN "fence"::int ELSE 0 END                             AS fence_count,
+        CASE WHEN "flatHill"::text ~ '^[0-9]+$' THEN "flatHill"::int ELSE 0 END                       AS flathill_count,
+        CASE WHEN "houseOrBuilding"::text ~ '^[0-9]+$' THEN "houseOrBuilding"::int ELSE 0 END         AS house_or_building_count,
+        CASE WHEN "guardRail"::text ~ '^[0-9]+$' THEN "guardRail"::int ELSE 0 END                     AS guard_rail_count,
+        CASE WHEN "kerb"::text ~ '^[0-9]+$' THEN "kerb"::int ELSE 0 END                               AS kerb_count,
+        CASE WHEN "NumberOfLanes"::text ~ '^[0-9]+$' THEN "NumberOfLanes"::int ELSE 0 END             AS number_of_lanes,
+        CASE WHEN "objectThrownOrDropped"::text ~ '^[0-9]+$' THEN "objectThrownOrDropped"::int ELSE 0 END AS object_thrown_or_dropped_count,
+        CASE WHEN "parkedVehicle"::text ~ '^[0-9]+$' THEN "parkedVehicle"::int ELSE 0 END             AS parked_vehicle_count,
+        CASE WHEN "pedestrian"::text ~ '^[0-9]+$' THEN "pedestrian"::int ELSE 0 END                   AS pedestrian_count,
+        CASE WHEN "roadworks"::text ~ '^[0-9]+$' THEN "roadworks"::int ELSE 0 END                     AS roadworks_count,
+        
+        "roadSurface"                                                                 AS road_surface,
+        
+        -- Speed limit clean handling
+        CASE WHEN "speedLimit"::text ~ '^[0-9]+$' THEN "speedLimit"::int ELSE 0 END    AS speed_limit,
+        
+        "holiday"                                                                     AS holiday_name,
+        "light"                                                                       AS light_description,
+        "weatherA"                                                                    AS weather_a,
+        "weatherB"                                                                    AS weather_b,
+        {{ current_timestamp() }}                                                     AS ingested_at
+    FROM source
 )
 
-select * from cleaned
+SELECT * FROM cleaned
