@@ -1,131 +1,203 @@
-# NZ Traffic Crash Data Engineering Pipeline
+# NZ Traffic Crash Data Pipeline
 
-An end-to-end Modern Data Stack (MDS) data pipeline designed to ingest, load, transform, and test public traffic crash data from the **Waka Kotahi NZ Transport Agency Open Data Portal**. 
+An end-to-end data engineering pipeline that ingests, loads, transforms, and tests public traffic crash data from the **Waka Kotahi NZ Transport Agency Open Data Portal**.
 
-This repository showcases production-grade data engineering patterns: containerized infrastructure, programmatic ingestion, case-sensitive database schema design, dbt-based transformation modeling, and robust data quality assurance.
+Built to demonstrate production-grade data engineering patterns: containerised infrastructure, programmatic data ingestion, schema-aware database design, layered dbt transformation modelling, custom data quality testing, and Airflow orchestration — all running locally via Docker Compose.
 
 ---
 
-## 🏗️ Architecture & Data Flow
+## Architecture & Data Flow
 
 ```mermaid
 graph TD
-    A[NZTA Open Data API] -->|Python Extraction| B[Pandas DataFrame]
-    B -->|SQLAlchemy / psycopg2| C[(PostgreSQL Raw Schema)]
-    C -->|dbt Staging Models| D[dbt View: stg_nz_traffic_crash]
-    D -->|dbt Analytical Marts| E[dbt Table: fct_nz_traffic_crashes]
-    E -->|dbt Data Quality Tests| F[Validation & Testing]
-    
+    A[Waka Kotahi NZTA Open Data API] -->|Python / Pandas| B[Raw DataFrame]
+    B -->|SQLAlchemy / psycopg2| C[(PostgreSQL — raw schema)]
+    C -->|dbt Staging| D[View: stg_nz_traffic_crash]
+    D -->|dbt Mart| E[Table: fct_nz_traffic_crash]
+    E -->|dbt Tests| F[Data Quality Validation]
+    G[Apache Airflow] -->|Orchestrates| B
+    G -->|Orchestrates| D
+    G -->|Orchestrates| F
+
     style A fill:#f9f,stroke:#333,stroke-width:2px
     style C fill:#96f,stroke:#333,stroke-width:2px
     style E fill:#6f9,stroke:#333,stroke-width:2px
+    style G fill:#f96,stroke:#333,stroke-width:2px
 ```
 
-1. **Ingest (E):** Programmatic retrieval of CSV data from the NZTA API, injecting ingestion timestamps for full data auditability.
-2. **Load (L):** Loading raw, case-sensitive columns into a PostgreSQL `raw` schema using Python, SQLAlchemy, and `psycopg2-binary`.
-3. **Transform (T):** Building structured staging and mart analytical layers with dbt Core.
-4. **Orchestrate (O):** Workflow scheduling and dependency mapping using Apache Airflow.
+| Stage | Tool | Description |
+|---|---|---|
+| **Extract** | Python, Pandas | Pulls crash data from the NZTA ArcGIS CSV endpoint and adds an ingestion timestamp |
+| **Load** | SQLAlchemy, psycopg2 | Loads the raw DataFrame into PostgreSQL preserving original column casing |
+| **Transform** | dbt Core | Builds a staging view (clean types, snake_case) and a mart fact table (derived metrics) |
+| **Test** | dbt singular tests | Validates business logic across the mart layer |
+| **Orchestrate** | Apache Airflow | Schedules the full pipeline daily with task-level dependency management |
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-*   **Orchestration:** Apache Airflow
-*   **Data Transformation:** dbt Core (v1.12+)
-*   **Database:** PostgreSQL (v18)
-*   **Languages & Tools:** Python (Pandas, SQLAlchemy, Psycopg2), SQL
-*   **Containerization:** Docker & Docker Compose
+| Layer | Technology |
+|---|---|
+| Orchestration | Apache Airflow 2.10 |
+| Transformation | dbt Core 1.12+ |
+| Database | PostgreSQL 18 |
+| Ingestion | Python 3, Pandas, SQLAlchemy |
+| Containerisation | Docker, Docker Compose |
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
-├── dags/                          # Apache Airflow DAG definitions
-│   └── crypto_pipline_dag.py      # Orchestrates extract-load & dbt run-test tasks
-├── extract/                       # Ingestion scripts
-│   ├── NZTrafficCrash_extract.py  # Pulls raw NZTA data from open API
-│   └── main.py                    # Extraction entrypoint
-├── load/                          # Database loading scripts
-│   ├── postgres_load.py           # Loads DataFrames to Postgres (keeps raw casing)
-│   └── main.py                    # Load entrypoint
-├── dbt/NZCrashData/               # dbt project directory
+├── dags/
+│   └── NZCrash_pipeline_dag.py      # Airflow DAG — extract/load → dbt run → dbt test
+├── extract/
+│   ├── NZTrafficCrash_extract.py    # Pulls raw NZTA data from the open API
+│   └── main.py                      # Extraction entrypoint
+├── load/
+│   ├── postgres_load.py             # Loads DataFrame into Postgres raw schema
+│   └── main.py                      # Load entrypoint
+├── dbt/NZCrashData/
 │   ├── models/
-│   │   ├── sources.yml            # Source schemas & documentation
-│   │   ├── staging/               # Staging models (clean/cast/standardize)
-│   │   └── marts/                 # Analytical dimensions & facts
-│   ├── tests/                     # dbt Singular Data Quality Tests
-│   ├── dbt_project.yml            # dbt configuration
-│   └── profiles.yml               # Database connection profiles
-├── docker-compose.yml             # Docker multi-container services definition
-└── requirements.txt               # Python package dependencies
+│   │   ├── sources.yml              # Source definitions and column documentation
+│   │   ├── staging/
+│   │   │   └── stg_nz_traffic_crash.sql
+│   │   └── marts/
+│   │       └── fct_nz_traffic_crash.sql
+│   ├── tests/                       # Custom singular dbt data quality tests
+│   ├── dbt_project.yml
+│   └── profiles.yml                 # Connection config (reads from environment variables)
+├── docker-compose.yml               # PostgreSQL + Airflow (init, webserver, scheduler)
+├── requirements.txt
+└── .env                             # Not committed — see Environment Variables below
 ```
 
 ---
 
-## 📊 dbt Data Modeling
+## dbt Data Modelling
 
-### 1. Staging Layer (`stg_nz_traffic_crash`)
-*   **Purpose:** Standardizes raw columns, handles case-sensitive mappings, cleans geospatial coordinates, and casts types.
-*   **Logic:** Standardizes camelCase and UPPERCASE system columns (e.g. `OBJECTID`, `tlaId`, `NumberOfLanes`) into clean snake_case variables.
+### Staging Layer — `stg_nz_traffic_crash` (View)
 
-### 2. Marts Layer (`fct_nz_traffic_crashes`)
-*   **Purpose:** Enriches raw metrics to build a single source of truth fact table for reporting.
-*   **Derived Columns:**
-    *   `total_injured_count` (serious + minor injury counts)
-    *   `total_casualties` (serious + minor + fatal counts)
-    *   `has_fatalities` (boolean flag based on fatalities)
-    *   `speed_zone` (categorizes speeds into `Urban`, `Suburban/Rural`, or `Highway/Open Road`)
+Cleans and standardises the raw source table:
 
----
+- Renames all columns from camelCase / UPPERCASE to `snake_case`
+- Wraps mixed-case source columns in double quotes to handle Postgres case sensitivity
+- Safe-casts all numeric columns using regex guards, defaulting to `0` or `NULL` rather than erroring
+- Handles coordinates (`X`, `Y`) as decimals with NULL for invalid values
+- Adds `ingested_at` via `{{ current_timestamp() }}`
 
-## 🧪 Data Quality & Validation
+### Mart Layer — `fct_nz_traffic_crash` (Table)
 
-We implement a multi-layered testing strategy combining schema-level constraints and custom singular business logic tests:
+Builds the analytical fact table with derived business metrics:
 
-*   **Schema Tests (`schema.yml`):**
-    *   `unique` and `not_null` constraints on primary keys (`crash_id`).
-    *   `not_null` validation on vital dimensions like `crash_severity`, `speed_zone`, and calculated metrics.
-*   **Singular Business Logic Tests (`/tests`):**
-    *   `assert_total_casualties_match_sum`: Validates that computed total casualties equal the sum of fatal, serious, and minor injuries.
-    *   `assert_injury_counts_are_positive`: Ensures no raw or processed record contains negative injury counts.
-    *   `assert_has_fatalities_flag_is_correct`: Guarantees logical alignment between boolean indicators and casualty numbers.
+| Column | Description |
+|---|---|
+| `road_type` | Categorises speed limit into `Urban` (≤50), `Rural` (≤80), `Highway` (>80), or `Unknown` |
+| `total_casualties` | Sum of fatal, serious, and minor injury counts |
+| `has_fatality` | Boolean — true when `fatal_count > 0` |
+| `involves_vulnerable_road_user` | Boolean — true when any bicycle, moped, or motorcycle count > 0 |
+| `is_serious_or_fatal` | Boolean — true when serious or fatal injuries occurred |
+| `holiday_name` | Null-safe — defaults to `'No Holiday'` when null |
 
 ---
 
-## 🚀 How to Set Up and Run
+## Data Quality Tests
+
+Five custom singular tests validate business logic against the mart:
+
+| Test | What it checks |
+|---|---|
+| `assert_fct_nz_traffic_crash_fatalityCheck` | `has_fatality` is `true` whenever `fatal_count > 0` |
+| `assert_fct_nz_traffic_crash_checkSeriousOrFatel` | `is_serious_or_fatal` is not `true` when both `serious_injury_count` and `fatal_count` are 0 |
+| `assert_fct_nz_traffic_crash_validTotalcasualties` | `total_casualties` is never negative |
+| `assert_fct_nz_traffic_crash_roadType` | `road_type` is always one of the four expected values |
+| `assert_fct_nz_traffic_crash_yearNotInFuture` | `crash_year` does not exceed the current year |
+
+---
+
+## Airflow DAG
+
+The `NZTrafficCrash_pipeline` DAG runs daily (`@daily`, no catchup) with three sequential tasks:
+
+```
+extract_and_load  →  dbt_run  →  dbt_test
+```
+
+- **`extract_and_load`** — PythonOperator that calls the extract and load functions
+- **`dbt_run`** — BashOperator running `dbt run` inside the Airflow container
+- **`dbt_test`** — BashOperator running `dbt test` after a successful build
+
+---
+
+## Environment Variables
+
+Create a `.env` file in the project root (not committed):
+
+```env
+POSTGRES_PASSWORD=your_password
+POSTGRES_DATABASE_NAME=NZTrafficCrashData
+
+AIR_FLOW_USER=admin
+AIR_FLOW_PASSWORD=admin
+AIR_FLOW_FIRSTNAME=First
+AIR_FLOW_LASTNAME=Last
+AIR_FLOW_EMAIL=admin@example.com
+```
+
+> **Note:** PostgreSQL 18 requires the volume path to include a version suffix: `/var/lib/postgresql/data/18`. This is already configured in `docker-compose.yml`.
+
+---
+
+## How to Run
 
 ### Prerequisites
-*   Docker & Docker Compose
-*   Python 3.10+
 
-### 1. Start Infrastructure
-Launch the PostgreSQL database service:
+- Docker and Docker Compose
+- Python 3.10+
+
+### 1. Configure environment
+
 ```bash
-docker compose up -d postgresSQL
+cp .env.example .env  # then fill in your values
 ```
 
-### 2. Install Python Dependencies
-Create and activate your virtual environment, then install requirements:
+### 2. Start infrastructure
+
+```bash
+docker compose up -d
+```
+
+This starts PostgreSQL and the full Airflow stack (init, webserver, scheduler). Airflow initialises the metadata database before the webserver and scheduler start.
+
+### 3. Run the pipeline manually (without Airflow)
+
 ```bash
 python -m venv venv
-venv\Scripts\activate  # Windows
-source venv/bin/activate  # macOS/Linux
+source venv/bin/activate       # macOS/Linux
+# venv\Scripts\activate        # Windows
 
 pip install -r requirements.txt
-```
-
-### 3. Extract & Load Raw Data
-Run the ETL entrypoint to extract from NZTA Open API and load into the PostgreSQL `raw` schema:
-```bash
 python -m load.main
 ```
 
-### 4. Run dbt Transformations & Tests
-Navigate to the dbt project folder and execute the compilation, build, and test steps:
+### 4. Run dbt transformations and tests
+
 ```bash
 cd dbt/NZCrashData
-
-# Run models and tests
-dbt build
+dbt build --profiles-dir .
 ```
+
+### 5. Trigger via Airflow
+
+Navigate to `http://localhost:8080`, log in with your configured credentials, enable the `NZTrafficCrash_pipeline` DAG, and trigger a run.
+
+---
+
+## Data Source
+
+**Waka Kotahi NZ Transport Agency — Crash Analysis System (CAS)**
+
+- Portal: [NZTA Open Data Portal](https://opendata-nzta.opendata.arcgis.com/)
+- Licence: Creative Commons Attribution 4.0 International
+- Coverage: All recorded road crashes in New Zealand

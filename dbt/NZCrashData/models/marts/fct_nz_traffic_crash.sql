@@ -32,11 +32,12 @@ fact as (
     bridge_count,
     car_station_wagon_count,
     bus_count,
+    minor_injury_count,
     fatal_count,
     serious_injury_count,
     (serious_injury_count + fatal_count + minor_injury_count) as total_casualties ,
     fatal_count > 0  as has_fatality,
-    (bicycle_count +  mopped_count +  motorcycle_count) > 0 as involves_vulnerable_road_user,
+    (bicycle_count +  moped_count +  motorcycle_count) > 0 as involves_vulnerable_road_user,
     (serious_injury_count + fatal_count ) > 0 as is_serious_or_fatal,
     {{current_timestamp()}} as ingested_at
     from cleanedData

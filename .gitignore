@@ -2,3 +2,6 @@
 /Data
 /venv
 /logs
+**/__pycache__/
+**/*.pyc
+/dbt/NZCrashData/.user.yml

@@ -34,7 +34,7 @@ cleaned AS (
         CASE WHEN "bicycle"::text ~ '^[0-9]+$' THEN "bicycle"::int ELSE 0 END                 AS bicycle_count,
         CASE WHEN "bus"::text ~ '^[0-9]+$' THEN "bus"::int ELSE 0 END                         AS bus_count,
         CASE WHEN "carStationWagon"::text ~ '^[0-9]+$' THEN "carStationWagon"::int ELSE 0 END AS car_station_wagon_count,
-        CASE WHEN "moped"::text ~ '^[0-9]+$' THEN "moped"::int ELSE 0 END                     AS mopped_count,
+        CASE WHEN "moped"::text ~ '^[0-9]+$' THEN "moped"::int ELSE 0 END                     AS moped_count,
         CASE WHEN "motorcycle"::text ~ '^[0-9]+$' THEN "motorcycle"::int ELSE 0 END           AS motorcycle_count,
 
         -- Environment 
