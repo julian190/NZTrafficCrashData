@@ -12,65 +12,65 @@ services:
       - ./Data/postgresData:/var/lib/postgresql/data/18
 
   # Airflow Init (Runs migrations automatically and exits)
-  # airflow-init:
-  #   image: apache/airflow:2.10.2
-  #   container_name: Crash_airflow_init
-  #   command: >
-  #     bash -c "airflow db migrate && airflow users create --username ${AIR_FLOW_USER} --password ${AIR_FLOW_PASSWORD} --firstname ${AIR_FLOW_FIRSTNAME} --lastname ${AIR_FLOW_LASTNAME} --role Admin --email ${AIR_FLOW_EMAIL}"
+  airflow-init:
+    image: apache/airflow:2.10.2
+    container_name: Crash_airflow_init
+    command: >
+      bash -c "airflow db migrate && airflow users create --username ${AIR_FLOW_USER} --password ${AIR_FLOW_PASSWORD} --firstname ${AIR_FLOW_FIRSTNAME} --lastname ${AIR_FLOW_LASTNAME} --role Admin --email ${AIR_FLOW_EMAIL}"
 
-  #   depends_on:
-  #     - postgresSQL
-  #   environment:
-  #     - AIRFLOW__CORE__LOAD_EXAMPLES=False
-  #     - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:${POSTGRES_PASSWORD}@postgresSQL:5432/${POSTGRES_DATABASE_NAME}
-  #   volumes:
-  #     - ./dags:/opt/airflow/dags
-  #     - ./extract:/opt/airflow/extract
-  #     - ./load:/opt/airflow/load
-  #     - ./dbt:/opt/airflow/dbt
-  #     - ./logs:/opt/airflow/logs
+    depends_on:
+      - postgresSQL
+    environment:
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:${POSTGRES_PASSWORD}@postgresSQL:5432/${POSTGRES_DATABASE_NAME}
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./extract:/opt/airflow/extract
+      - ./load:/opt/airflow/load
+      - ./dbt:/opt/airflow/dbt
+      - ./logs:/opt/airflow/logs
 
-  # airflow-webserver:
-  #   image: apache/airflow:2.10.2
-  #   container_name: crash_airflow_webserver
-  #   restart: always
-  #   command: webserver
-  #   depends_on:
-  #     airflow-init:
-  #       condition: service_completed_successfully # <--- Waits for migrations to finish completely
-  #   environment:
-  #     - AIRFLOW__CORE__LOAD_EXAMPLES=False
-  #     - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:${POSTGRES_PASSWORD}@postgresSQL:5432/${POSTGRES_DATABASE_NAME}
-  #     - _PIP_ADDITIONAL_REQUIREMENTS=pandas requests sqlalchemy psycopg2-binary python-dotenv dbt-postgres
-  #     - databaseURL=postgresql://postgres:${POSTGRES_PASSWORD}@postgresSQL:5432/${POSTGRES_DATABASE_NAME}
-  #     - DBT_HOST=postgresSQL
-  #   ports:
-  #     - "8080:8080"
-  #   volumes:
-  #     - ./dags:/opt/airflow/dags
-  #     - ./extract:/opt/airflow/extract
-  #     - ./load:/opt/airflow/load
-  #     - ./dbt:/opt/airflow/dbt
-  #     - ./logs:/opt/airflow/logs
+  airflow-webserver:
+    image: apache/airflow:2.10.2
+    container_name: crash_airflow_webserver
+    restart: always
+    command: webserver
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully # <--- Waits for migrations to finish completely
+    environment:
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:${POSTGRES_PASSWORD}@postgresSQL:5432/${POSTGRES_DATABASE_NAME}
+      - _PIP_ADDITIONAL_REQUIREMENTS=pandas requests sqlalchemy psycopg2-binary python-dotenv dbt-postgres
+      - databaseURL=postgresql://postgres:${POSTGRES_PASSWORD}@postgresSQL:5432/${POSTGRES_DATABASE_NAME}
+      - DBT_HOST=postgresSQL
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./extract:/opt/airflow/extract
+      - ./load:/opt/airflow/load
+      - ./dbt:/opt/airflow/dbt
+      - ./logs:/opt/airflow/logs
 
-  # # Airflow Scheduler (The Engine that runs your tasks)
-  # airflow-scheduler:
-  #   image: apache/airflow:2.10.2
-  #   container_name: crash_airflow_scheduler
-  #   restart: always
-  #   command: scheduler
-  #   depends_on:
-  #     airflow-init:
-  #       condition: service_completed_successfully # <--- Waits for migrations to finish completely
-  #   environment:
-  #     - AIRFLOW__CORE__LOAD_EXAMPLES=False
-  #     - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:${POSTGRES_PASSWORD}@postgresSQL:5432/${POSTGRES_DATABASE_NAME}
-  #     - _PIP_ADDITIONAL_REQUIREMENTS=pandas requests sqlalchemy psycopg2-binary python-dotenv dbt-postgres
-  #     - databaseURL=postgresql://postgres:${POSTGRES_PASSWORD}@postgresSQL:5432/${POSTGRES_DATABASE_NAME}
-  #     - DBT_HOST=postgresSQL
-  #   volumes:
-  #     - ./dags:/opt/airflow/dags
-  #     - ./extract:/opt/airflow/extract
-  #     - ./load:/opt/airflow/load
-  #     - ./dbt:/opt/airflow/dbt
-  #     - ./logs:/opt/airflow/logs
+  # Airflow Scheduler (The Engine that runs your tasks)
+  airflow-scheduler:
+    image: apache/airflow:2.10.2
+    container_name: crash_airflow_scheduler
+    restart: always
+    command: scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully # <--- Waits for migrations to finish completely
+    environment:
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:${POSTGRES_PASSWORD}@postgresSQL:5432/${POSTGRES_DATABASE_NAME}
+      - _PIP_ADDITIONAL_REQUIREMENTS=pandas requests sqlalchemy psycopg2-binary python-dotenv dbt-postgres
+      - databaseURL=postgresql://postgres:${POSTGRES_PASSWORD}@postgresSQL:5432/${POSTGRES_DATABASE_NAME}
+      - DBT_HOST=postgresSQL
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./extract:/opt/airflow/extract
+      - ./load:/opt/airflow/load
+      - ./dbt:/opt/airflow/dbt
+      - ./logs:/opt/airflow/logs

@@ -7,10 +7,10 @@ logging.basicConfig(level=logging.INFO)
 def load_to_postgres(df : pd.DataFrame, table_name: str,schema: str, db_url: str):
     try:
         engine = sa.create_engine(db_url)
-        with engine.connect() as connection:
+        with engine.begin() as connection:
             logging.info(f"Ensuring schema '{schema}' exists...")
             connection.execute(sa.text(f"CREATE SCHEMA IF NOT EXISTS {schema};"))
-            connection.commit()
+
         df.to_sql(table_name, engine,schema = schema, if_exists='replace', index=False)
         logging.info(f"Loaded {len(df)} rows into {table_name} table")
     except Exception as e:
