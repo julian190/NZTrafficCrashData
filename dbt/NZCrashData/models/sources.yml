@@ -157,3 +157,23 @@ sources:
             description: "Timestamp when this row was loaded into the database"
             tests:
               - not_null
+
+      - name: NZ_Weather
+        description: >
+          Raw daily weather from the Open-Meteo archive API (daily=rain_sum,temperature_2m_mean).
+          Grain is one row per representative city per day. "Region" stores the
+          main-city name (e.g. 'Auckland'), NOT the NZTA region spelling —
+          the staging layer maps it to crash-table region names.
+        columns:
+          - name: Region
+            description: "Representative main-city name for the NZTA region (e.g. Auckland, Tauranga)"
+          - name: Date
+            description: "Observation date as text (YYYY-MM-DD)"
+          - name: rain_sum
+            description: "Daily precipitation sum in mm"
+          - name: temperature_2m_mean
+            description: "Daily mean temperature at 2m in degrees Celsius"
+          - name: ingested_at
+            description: "Timestamp when this row was loaded into the database"
+            tests:
+              - not_null

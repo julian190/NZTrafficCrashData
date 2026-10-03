@@ -1,16 +1,61 @@
-from time import time
 import requests
 import pandas as pd
 import logging
 import time
+import random
 
-#Helper function to handle rate limit errors with exponential backoff
-def fetch_with_backoff(url, max_retries=5, base_delay=5):
+
+class DailyRateLimitExceeded(Exception):
+    """Raised when Open-Meteo daily/hourly/monthly quota is hit (non-retryable now)."""
+    pass
+
+
+# Shared keep-alive session: reuses TCP/TLS across cities (faster, fewer handshakes).
+# It does NOT fix resets/rate-limits by itself — retry logic in fetch_with_backoff does.
+_SESSION = requests.Session()
+_SESSION.headers.update({"User-Agent": "NZTrafficCrashData/1.0"})
+
+
+#Helper function to handle rate limit + transient network errors with exponential backoff
+def fetch_with_backoff(url, max_retries=5, base_delay=5, session=None):
+    getter = session.get if session is not None else requests.get
     for attempt in range(max_retries):
-        response = requests.get(url)
+        try:
+            response = getter(url, timeout=60)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            # Transient blip (e.g. WinError 10054 reset, DNS, TLS handshake drop).
+            # NOT a rate limit — just wait and retry the same request.
+            if attempt == max_retries - 1:
+                raise
+            wait = base_delay * (2 ** attempt) + random.uniform(0, 1)
+            logging.warning(f"Connection error ({type(e).__name__}), retrying in {wait:.1f}s (attempt {attempt + 1}/{max_retries})...")
+            time.sleep(wait)
+            continue
         if response.status_code == 429:
-            wait = base_delay * (2 ** attempt)
-            logging.warning(f"Rate limited, waiting {wait}s...")
+            body = (response.text or "").lower()
+            # Daily/hourly/monthly quotas need a long stop, not a quick retry.
+            # Concurrency ("too many concurrent", "queue is full") is retryable.
+            if any(k in body for k in ("daily", "hourly", "monthly", "limit exceeded")):
+                raise DailyRateLimitExceeded(
+                    f"Open-Meteo quota exhausted: {response.status_code} - {response.text}"
+                )
+            # Honour server-provided Retry-After when present
+            retry_after = response.headers.get("Retry-After")
+            try:
+                server_wait = float(retry_after) if retry_after else 0
+            except ValueError:
+                server_wait = 0
+            backoff = base_delay * (2 ** attempt) + random.uniform(0, 1)
+            wait = max(server_wait, backoff)
+            logging.warning(f"Rate limited (429), waiting {wait:.1f}s (attempt {attempt + 1}/{max_retries})...")
+            time.sleep(wait)
+            continue
+        if 500 <= response.status_code < 600:
+            # Server-side blip — retryable like a connection error
+            if attempt == max_retries - 1:
+                response.raise_for_status()
+            wait = base_delay * (2 ** attempt) + random.uniform(0, 1)
+            logging.warning(f"Server error {response.status_code}, retrying in {wait:.1f}s (attempt {attempt + 1}/{max_retries})...")
             time.sleep(wait)
             continue
         response.raise_for_status()
@@ -31,31 +76,20 @@ def ExtractData():
     except Exception as e:
         logging.error(f"Cannot extract data for NZ traffic crash: {e}")
         raise Exception("Cannot extract data from the source")
-def ExtractWeatherData(region:str, start_date:str, end_date:str):
+def ExtractWeatherData(region: str, latitude: float, longitude: float, start_date: str, end_date: str):
     try:
-        logging.info("Extracting data for NZ weather")
+        logging.info(f"Extracting weather for {region} ({latitude},{longitude}) {start_date}..{end_date}")
 
-        #Get the region coordinates
-        if  not region:
+        # Coordinates now come from load/Static/MainCities.csv — no geocoding call,
+        # which halves Open-Meteo request volume and avoids geocoding rate limits.
+        if not region:
             raise Exception("Region is not provided")
-
-        regionUrl = f"https://geocoding-api.open-meteo.com/v1/search?name={region}&countryCode=NZ&count=1&language=en&format=json"
-        print(f"Region URL: {regionUrl}")
-        data = fetch_with_backoff(regionUrl)
-
-        if data.status_code != 200 or not data.json().get("results"):
-            raise Exception(f"Failed to fetch region coordinates: {data.status_code} - {data.text}")
-        time.sleep(1.5)
-
-        # Fetch region coordinates
-        regionDf = pd.json_normalize(data.json().get("results"))
-        print(f"Region DataFrame: {regionDf.head()}")
-        latitude = regionDf.iloc[0]["latitude"]
-        longitude = regionDf.iloc[0]["longitude"]
+        if latitude is None or longitude is None:
+            raise Exception(f"Coordinates missing for region '{region}' - check MainCities.csv")
 
         url = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&daily=rain_sum,temperature_2m_mean&timezone=Pacific/Auckland"
         print(f"Weather Data URL: {url}")
-        response = fetch_with_backoff(url)
+        response = fetch_with_backoff(url, session=_SESSION)
         if response.status_code != 200:
             raise Exception(f"Failed to fetch weather data: {response.status_code} - {response.text}")
         data = response.json()
@@ -72,6 +106,9 @@ def ExtractWeatherData(region:str, start_date:str, end_date:str):
         logging.info("Data extracted successfully for NZ weather")
         return df
 
+    except DailyRateLimitExceeded:
+        # Let quota-exhaustion propagate so the caller can checkpoint and stop gracefully
+        raise
     except Exception as e:
         logging.error(f"Cannot extract data for NZ weather: {e}")
         raise Exception("Cannot extract data from the source")

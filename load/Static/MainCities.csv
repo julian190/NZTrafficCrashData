@@ -1,17 +1,17 @@
-region,main city
-Northland Region,Whangārei
-Auckland Region,Auckland
-Waikato Region,Hamilton
-Bay of Plenty Region,Tauranga
-Gisborne Region,Gisborne
-Hawke's Bay Region,Napier
-Taranaki Region,New Plymouth
-Manawatū-Whanganui Region,Palmerston North
-Wellington Region,Wellington
-Tasman Region,Richmond
-Nelson Region,Nelson
-Marlborough Region,Blenheim
-West Coast Region,Greymouth
-Canterbury Region,Christchurch
-Otago Region,Dunedin
-Southland Region,Invercargill
+region,main city,latitude,longitude
+Northland Region,Whangārei,-35.73167,174.32391
+Auckland Region,Auckland,-36.84853,174.76349
+Waikato Region,Hamilton,-37.78333,175.28333
+Bay of Plenty Region,Tauranga,-37.68611,176.16667
+Gisborne Region,Gisborne,-38.65333,178.00417
+Hawke's Bay Region,Napier,-39.4926,176.91232
+Taranaki Region,New Plymouth,-39.06667,174.08333
+Manawatū-Whanganui Region,Palmerston North,-40.35636,175.61113
+Wellington Region,Wellington,-41.28664,174.77557
+Tasman Region,Richmond,-41.33333,173.18333
+Nelson Region,Nelson,-41.27078,173.28404
+Marlborough Region,Blenheim,-41.51603,173.9528
+West Coast Region,Greymouth,-42.46667,171.2
+Canterbury Region,Christchurch,-43.53333,172.63333
+Otago Region,Dunedin,-45.87416,170.50362
+Southland Region,Invercargill,-46.4,168.35
