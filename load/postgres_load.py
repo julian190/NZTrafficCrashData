@@ -27,6 +27,8 @@ def load_to_postgres(df : pd.DataFrame, table_name: str,schema: str, db_url: str
                 schema=schema,
                 if_exists='append' if if_exists == 'replace' else if_exists,
                 index=False,
+                chunksize=5000,
+                method='multi',
             )
         logging.info(f"Loaded {len(df)} rows into {table_name} table")
     except Exception as e:
