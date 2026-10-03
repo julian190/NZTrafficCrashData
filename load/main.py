@@ -1,19 +1,20 @@
-from dotenv import load_dotenv
 import argparse
 import json
 import os
 import sys
-from load.postgres_load import delete_table_if_exists, load_to_postgres
-from extract.NZTrafficCrash_extract import ExtractData
-from extract.NZTrafficCrash_extract import ExtractWeatherData, DailyRateLimitExceeded
-from datetime import datetime, UTC, timedelta
-import pandas as pd
-from pathlib import Path
 import time
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
-load_dotenv('.env')
-dburl = os.getenv('databaseURL')
-#print(f"Database URL: {dburl}")
+import pandas as pd
+from dotenv import load_dotenv
+
+from extract.NZTrafficCrash_extract import DailyRateLimitExceeded, ExtractData, ExtractWeatherData
+from load.postgres_load import delete_table_if_exists, load_to_postgres
+
+load_dotenv(".env")
+dburl = os.getenv("databaseURL")
+# print(f"Database URL: {dburl}")
 
 DEFAULT_PROGRESS_FILE = Path(__file__).resolve().parents[1] / "Data" / "weather_progress.json"
 
@@ -41,12 +42,15 @@ def get_weather_max_date_per_region(db_url: str) -> dict:
     """Return {Region: max Date string} from raw.NZ_Weather, or {} if table/DB unavailable."""
     try:
         import sqlalchemy as sa
+
         engine = sa.create_engine(db_url)
         with engine.connect() as conn:
             insp = sa.inspect(conn)
             if not insp.has_table("NZ_Weather", schema="raw"):
                 return {}
-            rows = conn.execute(sa.text('SELECT "Region", MAX("Date") FROM raw."NZ_Weather" GROUP BY "Region"')).fetchall()
+            rows = conn.execute(
+                sa.text('SELECT "Region", MAX("Date") FROM raw."NZ_Weather" GROUP BY "Region"')
+            ).fetchall()
             out = {}
             for region, max_date in rows:
                 if region is not None and max_date is not None:
@@ -59,14 +63,24 @@ def get_weather_max_date_per_region(db_url: str) -> dict:
 
 def parse_args():
     p = argparse.ArgumentParser(description="NZ crash + weather backfill with checkpoint/resume.")
-    p.add_argument("--full-reload", action="store_true",
-                   help="Truncate raw.NZ_Weather and refetch everything (default is incremental/resume).")
-    p.add_argument("--reset-progress", action="store_true",
-                   help="Ignore and overwrite the checkpoint file.")
-    p.add_argument("--request-delay", type=float, default=6.0,
-                   help="Seconds to sleep between Open-Meteo archive calls (default 6).")
-    p.add_argument("--progress-file", type=str, default=str(DEFAULT_PROGRESS_FILE),
-                   help="Checkpoint file tracking completed regions.")
+    p.add_argument(
+        "--full-reload",
+        action="store_true",
+        help="Truncate raw.NZ_Weather and refetch everything (default is incremental/resume).",
+    )
+    p.add_argument("--reset-progress", action="store_true", help="Ignore and overwrite the checkpoint file.")
+    p.add_argument(
+        "--request-delay",
+        type=float,
+        default=6.0,
+        help="Seconds to sleep between Open-Meteo archive calls (default 6).",
+    )
+    p.add_argument(
+        "--progress-file",
+        type=str,
+        default=str(DEFAULT_PROGRESS_FILE),
+        help="Checkpoint file tracking completed regions.",
+    )
     return p.parse_args()
 
 
@@ -84,14 +98,13 @@ if __name__ == "__main__":
     # Example usage
     df = ExtractData()
 
-
     if df is not None:
         delete_table_if_exists("NZ_Traffic_Crash", "raw", dburl)
-        load_to_postgres(df, "NZ_Traffic_Crash","raw",dburl)
+        load_to_postgres(df, "NZ_Traffic_Crash", "raw", dburl)
 
-         #Weather Data Extraction
+        # Weather Data Extraction
         csv_file = Path(__file__).parent / "Static" / "MainCities.csv"
-        #print(f"Extracted DataFrame: {df.head()}")
+        # print(f"Extracted DataFrame: {df.head()}")
         if args.full_reload:
             delete_table_if_exists("NZ_Weather", "raw", dburl)
             progress = {}
@@ -99,26 +112,24 @@ if __name__ == "__main__":
         db_max_dates = {} if args.full_reload else get_weather_max_date_per_region(dburl)
         if db_max_dates:
             print(f"Found existing weather data for {len(db_max_dates)} regions in DB; will fetch only missing dates.")
-        distinct_regions = pd.DataFrame({
-        'region': df['region'].str.strip().dropna().unique()
-        })
+        distinct_regions = pd.DataFrame({"region": df["region"].str.strip().dropna().unique()})
         mainCitices = pd.read_csv(csv_file)
-        mainCitices['region'] = mainCitices['region'].str.strip()
-        MainCitydf = distinct_regions.merge(mainCitices, on='region', how='left')
+        mainCitices["region"] = mainCitices["region"].str.strip()
+        MainCitydf = distinct_regions.merge(mainCitices, on="region", how="left")
         # Keep lat/lon alongside the city name; drop rows with no mapping or coords
-        MainCitydf = MainCitydf.dropna(subset=['main city'])
-        if 'latitude' in MainCitydf.columns:
-            MainCitydf = MainCitydf.dropna(subset=['latitude', 'longitude'])
-        #print(f"Distinct regions extracted: {mainCityList}")
-        min_years = df['crashYear'].dropna().unique().min()
-        max_years = df['crashYear'].dropna().unique().max()
+        MainCitydf = MainCitydf.dropna(subset=["main city"])
+        if "latitude" in MainCitydf.columns:
+            MainCitydf = MainCitydf.dropna(subset=["latitude", "longitude"])
+        # print(f"Distinct regions extracted: {mainCityList}")
+        min_years = df["crashYear"].dropna().unique().min()
+        max_years = df["crashYear"].dropna().unique().max()
         global_start = f"{min_years}-01-01"
         end_date = datetime.now(UTC).date().strftime("%Y-%m-%d")
         stopped_early = False
         for _, row in MainCitydf.iterrows():
-            region = row['main city']
-            lat = row.get('latitude') if 'latitude' in row else None
-            lon = row.get('longitude') if 'longitude' in row else None
+            region = row["main city"]
+            lat = row.get("latitude") if "latitude" in row else None
+            lon = row.get("longitude") if "longitude" in row else None
 
             # 1) Checkpoint resume: already completed for this end_date
             if progress.get(region) == end_date:
@@ -148,24 +159,27 @@ if __name__ == "__main__":
             except DailyRateLimitExceeded as e:
                 # Quota exhausted: checkpoint what we have and stop gracefully so next run resumes.
                 save_progress(progress_file, progress)
-                print(f"Daily/hourly quota hit after {len(progress)} regions. Progress saved to {progress_file}. "
-                      f"Re-run later to resume. Details: {e}")
+                print(
+                    f"Daily/hourly quota hit after {len(progress)} regions. Progress saved to {progress_file}. "
+                    f"Re-run later to resume. Details: {e}"
+                )
                 stopped_early = True
                 break
             except Exception as e:
                 save_progress(progress_file, progress)
-                print(f"Failed on {region}: {e}. Progress saved to {progress_file}. Re-run to resume.",
-                      file=sys.stderr)
+                print(f"Failed on {region}: {e}. Progress saved to {progress_file}. Re-run to resume.", file=sys.stderr)
                 raise
             if weather_df is not None:
                 print(f"Extracted Weather DataFrame for {region}: {weather_df.head()}")
-                load_to_postgres(weather_df, "NZ_Weather","raw",dburl, if_exists='append')
+                load_to_postgres(weather_df, "NZ_Weather", "raw", dburl, if_exists="append")
                 progress[region] = end_date
                 save_progress(progress_file, progress)
                 db_max_dates[region] = end_date
                 time.sleep(args.request_delay)
         if stopped_early:
-            print(f"Stopped early due to rate limit. Completed {len(progress)}/{len(MainCitydf)} regions. Re-run to resume.")
+            print(
+                f"Stopped early due to rate limit. Completed {len(progress)}/{len(MainCitydf)} regions. Re-run to resume."
+            )
         else:
             print(f"Weather backfill complete: {len(progress)}/{len(MainCitydf)} regions up to {end_date}.")
     print(f"Extracted DataFrame: {df.head() if df is not None else 'No data extracted.'}")

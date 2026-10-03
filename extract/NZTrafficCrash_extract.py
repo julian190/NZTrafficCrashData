@@ -1,12 +1,14 @@
-import requests
-import pandas as pd
 import logging
-import time
 import random
+import time
+
+import pandas as pd
+import requests
 
 
 class DailyRateLimitExceeded(Exception):
     """Raised when Open-Meteo daily/hourly/monthly quota is hit (non-retryable now)."""
+
     pass
 
 
@@ -16,7 +18,7 @@ _SESSION = requests.Session()
 _SESSION.headers.update({"User-Agent": "NZTrafficCrashData/1.0"})
 
 
-#Helper function to handle rate limit + transient network errors with exponential backoff
+# Helper function to handle rate limit + transient network errors with exponential backoff
 def fetch_with_backoff(url, max_retries=5, base_delay=5, session=None):
     getter = session.get if session is not None else requests.get
     for attempt in range(max_retries):
@@ -27,8 +29,10 @@ def fetch_with_backoff(url, max_retries=5, base_delay=5, session=None):
             # NOT a rate limit — just wait and retry the same request.
             if attempt == max_retries - 1:
                 raise
-            wait = base_delay * (2 ** attempt) + random.uniform(0, 1)
-            logging.warning(f"Connection error ({type(e).__name__}), retrying in {wait:.1f}s (attempt {attempt + 1}/{max_retries})...")
+            wait = base_delay * (2**attempt) + random.uniform(0, 1)
+            logging.warning(
+                f"Connection error ({type(e).__name__}), retrying in {wait:.1f}s (attempt {attempt + 1}/{max_retries})..."
+            )
             time.sleep(wait)
             continue
         if response.status_code == 429:
@@ -36,16 +40,14 @@ def fetch_with_backoff(url, max_retries=5, base_delay=5, session=None):
             # Daily/hourly/monthly quotas need a long stop, not a quick retry.
             # Concurrency ("too many concurrent", "queue is full") is retryable.
             if any(k in body for k in ("daily", "hourly", "monthly", "limit exceeded")):
-                raise DailyRateLimitExceeded(
-                    f"Open-Meteo quota exhausted: {response.status_code} - {response.text}"
-                )
+                raise DailyRateLimitExceeded(f"Open-Meteo quota exhausted: {response.status_code} - {response.text}")
             # Honour server-provided Retry-After when present
             retry_after = response.headers.get("Retry-After")
             try:
                 server_wait = float(retry_after) if retry_after else 0
             except ValueError:
                 server_wait = 0
-            backoff = base_delay * (2 ** attempt) + random.uniform(0, 1)
+            backoff = base_delay * (2**attempt) + random.uniform(0, 1)
             wait = max(server_wait, backoff)
             logging.warning(f"Rate limited (429), waiting {wait:.1f}s (attempt {attempt + 1}/{max_retries})...")
             time.sleep(wait)
@@ -54,8 +56,10 @@ def fetch_with_backoff(url, max_retries=5, base_delay=5, session=None):
             # Server-side blip — retryable like a connection error
             if attempt == max_retries - 1:
                 response.raise_for_status()
-            wait = base_delay * (2 ** attempt) + random.uniform(0, 1)
-            logging.warning(f"Server error {response.status_code}, retrying in {wait:.1f}s (attempt {attempt + 1}/{max_retries})...")
+            wait = base_delay * (2**attempt) + random.uniform(0, 1)
+            logging.warning(
+                f"Server error {response.status_code}, retrying in {wait:.1f}s (attempt {attempt + 1}/{max_retries})..."
+            )
             time.sleep(wait)
             continue
         response.raise_for_status()
@@ -76,6 +80,8 @@ def ExtractData():
     except Exception as e:
         logging.error(f"Cannot extract data for NZ traffic crash: {e}")
         raise Exception("Cannot extract data from the source")
+
+
 def ExtractWeatherData(region: str, latitude: float, longitude: float, start_date: str, end_date: str):
     try:
         logging.info(f"Extracting weather for {region} ({latitude},{longitude}) {start_date}..{end_date}")
@@ -93,14 +99,15 @@ def ExtractWeatherData(region: str, latitude: float, longitude: float, start_dat
         if response.status_code != 200:
             raise Exception(f"Failed to fetch weather data: {response.status_code} - {response.text}")
         data = response.json()
-       # print(f"Weather Data: {data}")
+        # print(f"Weather Data: {data}")
 
-        df = pd.DataFrame({
-            "Region": region,
-            "Date": data["daily"]["time"],
-            "rain_sum": data["daily"]["rain_sum"],
-            "temperature_2m_mean": data["daily"]["temperature_2m_mean"]
-        }
+        df = pd.DataFrame(
+            {
+                "Region": region,
+                "Date": data["daily"]["time"],
+                "rain_sum": data["daily"]["rain_sum"],
+                "temperature_2m_mean": data["daily"]["temperature_2m_mean"],
+            }
         )
         df["ingested_at"] = pd.Timestamp.now("UTC")
         logging.info("Data extracted successfully for NZ weather")
