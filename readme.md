@@ -115,6 +115,7 @@ Five custom singular tests validate business logic against the mart:
 | `assert_fct_nz_traffic_crash_yearNotInFuture` | `crash_year` does not exceed the current year |
 
 ---
+Notice region has blank for some rows added as unknown on the marts table 
 
 ## Airflow DAG
 
