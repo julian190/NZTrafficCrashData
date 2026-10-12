@@ -6,7 +6,7 @@ fact as (
     crash_id,
     crash_year,
     crash_sh_description,
-    region,
+    COALESCE(region, 'Unknown') as region,
     crash_location1,
     crash_location2,
     number_of_lanes,
@@ -16,8 +16,8 @@ fact as (
         WHEN speed_limit <= 80 THEN 'Rural'
         ELSE 'Highway' END AS road_type,
     light_description,
-    weather_a,
-    weather_b,
+    REPLACE(COALESCE(weather_a, 'Unknown'),'Null','Unknown') as weather_a,
+    REPLACE(COALESCE(weather_b, 'Unknown'),'Null','Unknown') as weather_b,
     CASE WHEN holiday_name IS NULL  THEN 'No Holiday' 
     ELSE holiday_name END AS holiday_name,
     pedestrian_count,
